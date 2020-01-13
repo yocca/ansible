@@ -1,0 +1,14 @@
+### regions to operate
+---
+env: dev
+state: create
+vpc:
+  region: 'us-east-1'
+  cidr: 10.0.0.0/16
+  subnets:
+    - { az: 'a', cidr: '0', public: false }
+    - { az: 'b', cidr: '1', public: false }
+    - { az: 'c', cidr: '2', public: false }
+    - { az: 'a', cidr: '5', public: true }
+    - { az: 'b', cidr: '6', public: true }
+    - { az: 'c', cidr: '7', public: true }

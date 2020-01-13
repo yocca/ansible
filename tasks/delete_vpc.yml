@@ -1,0 +1,94 @@
+### WARNING: This will delete the ALB, Target Group, and ASG
+---
+- set_fact:
+    region: "{{ vpc['region'] }}"
+    vpc_cidr: "{{ vpc['cidr'] }}"
+
+- name: Pull VPC ID
+  register: vpcs_facts
+  ec2_vpc_net_info:
+    region: "{{ region }}"
+    filters:
+      "tag:Name": "{{ env }}-vpc-{{ region }}"
+
+- name: End play if an empty list of vpcs have been returned
+  meta: end_play
+  when: "vpcs_facts['vpcs'] | length == 0"
+
+- set_fact:
+    vpc_id: "{{ vpcs_facts['vpcs'][0]['vpc_id'] }}"
+
+- name: Delete Private SG
+  ec2_group:
+    state: absent
+    region: "{{ region }}"
+    name: "{{ env }}-private-sg"
+
+- name: Delete Public SG
+  ec2_group:
+    state: absent
+    region: "{{ region }}"
+    name: "{{ env }}-public-sg"
+
+- name: Delete Public Route Table
+  ec2_vpc_route_table:
+    state: absent
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_id }}"
+    tags:
+      Name: "{{ env }}-public-rt"
+
+- name: Delete Private Route Table
+  ec2_vpc_route_table:
+    state: absent
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_id }}"
+    tags:
+      Name: "{{ env }}-private-rt"
+
+- name: Pull Public Subnet A
+  register: subnets
+  ec2_vpc_subnet_info:
+    region: "{{ region }}"
+    filters:
+      vpc-id: "{{ vpc_id }}"
+      availability-zone: "{{ region }}a"
+      "tag:Name": "{{ env }}-public-a"
+
+- name: Pull NAT Gateways
+  register: ngws
+  ec2_vpc_nat_gateway_info:
+    region: "{{ region }}"
+    filters:
+      subnet-id: "{{ subnets['subnets'][0]['subnet_id'] }}"
+  when: "subnets['subnets'] | length != 0"
+  ignore_errors: true
+
+- name: Delete NAT Gateway
+  ec2_vpc_nat_gateway:
+    state: absent 
+    region: "{{ region }}"
+    nat_gateway_id: "{{ ngws['result'][0]['nat_gateway_id'] }}"
+    release_eip: yes
+    wait: yes
+  when: "ngws['result'] | length != 0"
+  ignore_errors: true
+    
+- name: Delete Subnets 
+  include_tasks: delete_subnet.yml
+  with_items: "{{ vpc['subnets'] }}"
+  loop_control:
+    loop_var: subnet 
+
+- name: Delete VPC IGW
+  ec2_vpc_igw:
+    state: absent
+    region: "{{ region }}"
+    vpc_id: "{{ vpc_id }}"
+
+- name: Delete VPC
+  ec2_vpc_net:
+    state: absent
+    region: "{{ region }}"
+    name: "{{ env }}-vpc-{{ region }}"
+    cidr_block: "{{ vpc_cidr }}"
