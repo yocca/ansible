@@ -18,6 +18,9 @@
 - set_fact:
     vpc_id: "{{ vpcs_facts['vpcs'][0]['vpc_id'] }}"
 
+- name: Delete Webserver
+  include_tasks: delete_webserver.yml
+
 - name: Delete Private SG
   ec2_group:
     state: absent

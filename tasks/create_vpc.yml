@@ -140,3 +140,6 @@
         group_name: "{{ env }}-public-sg"
 - set_fact:
     private_sg_id: "{{ private_sg['group_id'] }}"
+
+- name: Run Webserver Creation
+  include_tasks: create_webserver.yml

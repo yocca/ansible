@@ -1,0 +1,70 @@
+###
+---
+- set_fact:
+    task_definition_name: fargate-task-definition
+
+######
+# ECS - Task Definition
+# Registers 'task-definition'
+# Doc: 'https://docs.ansible.com/ansible/latest/modules/ecs_taskdefinition_module.html'
+######
+- name: Fetch Task Definitions
+  register: task_definitions
+  ecs_taskdefinition_info:
+    task_definition: "{{ task_definition_name }}"
+
+- name: Do IT
+  register: taskDefinitionResponse
+  shell: "aws ecs list-task-definitions --family-prefix {{ task_definition_name }}"
+
+- set_fact:
+    taskDefinitionList: "{{ taskDefinitionResponse['stdout'] }}"
+
+######
+# ECS - Service
+# Doc: 'https://docs.ansible.com/ansible/latest/modules/ecs_service_module.html'
+######
+- name: Set ECS desired instance count to 0
+  ecs_service:
+    state: present
+    name: console-test-service
+    cluster: default
+    task_definition: "fargate-task-definition"
+    desired_count: 0
+  when: "taskDefinitionList['taskDefinitionArns'] | length != 0"
+
+- pause:
+    minutes: 1
+
+######
+# ECS - Service
+# Doc: 'https://docs.ansible.com/ansible/latest/modules/ecs_service_module.html'
+######
+- ecs_service:
+    state: absent
+    name: console-test-service
+    cluster: default
+    desired_count: 0
+
+- pause:
+    minutes: 2
+
+######
+# ECS - Cluster
+# Doc: 'https://docs.ansible.com/ansible/latest/modules/ecs_cluster_module.html'
+######
+- ecs_cluster:
+    name: default
+    state: absent
+
+######
+# ECS - Task Definition
+# Registers 'task-definition'
+# Doc: 'https://docs.ansible.com/ansible/latest/modules/ecs_taskdefinition_module.html'
+######
+# TODO -- Delete each task definition/revision
+- name: Delete task definition
+  ecs_taskdefinition:
+    state: absent
+    arn: "{{ item }}"
+  with_items: "{{ taskDefinitionList['taskDefinitionArns'] }}"
