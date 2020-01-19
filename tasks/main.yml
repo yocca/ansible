@@ -11,3 +11,4 @@
       Environment: "{{ env }}"
       Region: "{{ vpc['region'] }}"
       CidrBlock: "10.0.0.0/16"
+      NGW: "{{ vpc['ngw'] }}"

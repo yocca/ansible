@@ -4,4 +4,4 @@ env: dev
 state: present
 vpc:
   region: 'us-east-1'
-  igw: true
+  ngw: 'yes'

@@ -7,15 +7,20 @@ Parameters:
   CidrBlock:
     Type: String
     Default: "10.0.0.0/16"
-
+  NGW:
+    Type: String
+    Default: "yes"
+    AllowedValues:
+      - "yes"
+      - "no"
+Conditions:
+  CreateNatGateway: !Equals [!Ref NGW, "yes"]
 Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref CidrBlock
-      Tags:
-        - Key: Name
-          Value: !Join ["-", [!Ref Environment, !Ref Region]]
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -58,4 +63,107 @@ Resources:
       AvailabilityZone: "us-east-1c"
       VpcId: !Ref VPC
       Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "private", "1c"]]}]
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  NatEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PrivateSubnet1
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, "public"]] }]
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: '0.0.0.0/0'
+      RouteTableId: !Ref PublicRouteTable
+      GatewayId: !Ref InternetGateway
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, "private"]] }]
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: '0.0.0.0/0'
+      RouteTableId: !Ref PrivateRouteTable
+      NatGatewayId: !Ref NatGateway
+  PublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ["-", [!Ref Environment, "public"]]
+      GroupDescription: "Public Security Group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+  PrivateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ["-", [!Ref Environment, "private"]]
+      GroupDescription: "Private Security Group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !GetAtt PublicSecurityGroup.GroupId
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: Default
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Name: "simple-app"
+          Command: ["/bin/sh -c \"echo '<html> <head> <title>Amazon ECS Sample App</title> <style>body {margin-top: 40px; background-color: #333;} </style> </head><body> <div style=color:white;text-align:center> <h1>Amazon ECS Sample App</h1> <h2>Congratulations!</h2> <p>Your application is now running on a container in Amazon ECS.</p> </div></body></html>' >  /usr/local/apache2/htdocs/index.html && httpd-foreground\""]
+          EntryPoint: ["sh", "-c"]
+          Essential: true
+          Image: "httpd:2.4"
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+      Cpu: 256
+      Family: "my-task-definition"
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: ["FARGATE"]
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: my-ecs-service
+      Cluster: !GetAtt ECSCluster.Arn
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups: [!GetAtt PublicSecurityGroup.GroupId]
+          Subnets: [!Ref PublicSubnet1, !Ref PublicSubnet2, !Ref PublicSubnet3]
+
 
