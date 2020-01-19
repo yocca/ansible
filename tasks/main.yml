@@ -1,8 +1,13 @@
 ###  
 ---
-- name:  Run Create VPC Task File 
-  include_tasks: create_vpc.yml
-  when: state == 'create'
-- import_tasks: delete_vpc.yml
-  when: state == 'delete'
-
+- name: create cloudformation stack
+  cloudformation:
+    stack_name: "{{ env }}-cloudformation"
+    state: "{{ state }}"
+    region: "{{ vpc['region'] }}"
+    disable_rollback: yes
+    template: "tasks/infra.yml"
+    template_parameters:
+      Environment: "{{ env }}"
+      Region: "{{ vpc['region'] }}"
+      CidrBlock: "10.0.0.0/16"

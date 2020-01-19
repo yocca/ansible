@@ -1,0 +1,61 @@
+Parameters:
+  Environment:
+    Type: String
+  Region:
+    Type: String
+    Default: "us-east-1"
+  CidrBlock:
+    Type: String
+    Default: "10.0.0.0/16"
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref CidrBlock
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref Environment, !Ref Region]]
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: "us-east-1a"
+      VpcId: !Ref VPC
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "public", "1a"]]}]
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: "us-east-1b"
+      VpcId: !Ref VPC
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "public", "1b"]]}]
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "10.0.3.0/24"
+      AvailabilityZone: "us-east-1c"
+      VpcId: !Ref VPC
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "public", "1c"]]}]
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "10.0.4.0/24"
+      AvailabilityZone: "us-east-1a"
+      VpcId: !Ref VPC
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "private", "1a"]]}]
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "10.0.5.0/24"
+      AvailabilityZone: "us-east-1b"
+      VpcId: !Ref VPC
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "private", "1b"]]}]
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: "10.0.6.0/24"
+      AvailabilityZone: "us-east-1c"
+      VpcId: !Ref VPC
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "private", "1c"]]}]
+
