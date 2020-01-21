@@ -1,7 +1,28 @@
 ---
-- hosts: localhost
+- name: Create defined stacks
+  hosts: localhost
   vars_files:
     - vars/config.yml
   tasks:
-    - name: Run Create VPC file
-      include_tasks: tasks/main.yml
+    - name: Handle network stack
+      cloudformation:
+        stack_name: "{{ env }}-network-stack"
+        state: "{{ state }}"
+        region: "{{ vpc['region'] }}"
+        disable_rollback: no
+        template: "stacks/network-stack.yml"
+        template_parameters:
+          Environment: "{{ env }}"
+          Region: "{{ vpc['region'] }}"
+          CidrBlock: "10.0.0.0/16"
+          NGW: "{{ vpc['ngw'] }}"
+    - name: Handle web stack
+      cloudformation:
+        stack_name: "{{ env }}-web-stack"
+        state: "{{ state }}"
+        region: "{{ vpc['region'] }}"
+        disable_rollback: no
+        on_create_failure: DELETE
+        template: "stacks/web-stack.yml"
+        template_parameters:
+          NetworkStackName: "{{ env }}-network-stack"

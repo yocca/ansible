@@ -1,0 +1,84 @@
+Parameters:
+  NetworkStackName:
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+    Default: "dev-network-stack"
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: Default
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ExecutionRoleArn: "arn:aws:iam::202910097882:role/ecsTaskExecutionRole"
+      ContainerDefinitions:
+        - Name: "simple-app"
+          Essential: true
+          Image: "202910097882.dkr.ecr.us-east-1.amazonaws.com/yocca:simple-webserver"
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+      Cpu: 256
+      Family: "my-task-definition"
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: ["FARGATE"]
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: "my-tg"
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${NetworkStackName}-VPCID"
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: "my-alb"
+      Type: application
+      SecurityGroups:
+        - Fn::ImportValue:
+            Fn::Sub: "${NetworkStackName}-PublicSecurityGroup"
+      Subnets: !Split
+        - ','
+        - Fn::ImportValue:
+            Fn::Sub: "${NetworkStackName}-PublicSubnets"
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - LoadBalancerListener
+    Properties:
+      ServiceName: my-ecs-service
+      Cluster: !GetAtt ECSCluster.Arn
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: 3
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::ImportValue:
+                !Sub "${NetworkStackName}-PrivateSecurityGroup"
+          Subnets: !Split
+            - ','
+            - Fn::ImportValue:
+                !Sub "${NetworkStackName}-PrivateSubnets"
+      LoadBalancers:
+        - ContainerName: "simple-app"
+          ContainerPort: 80
+          TargetGroupArn: !Ref TargetGroup
