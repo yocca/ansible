@@ -1,7 +1,4 @@
-### regions to operate
+###
 ---
-env: dev
-state: present
-vpc:
-  region: 'us-east-1'
-  ngw: 'yes'
+app_name: "dev"
+region: "us-east-1"

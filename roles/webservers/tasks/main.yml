@@ -1,0 +1,16 @@
+- name: Handle web stack
+  register: "web_stack"
+  cloudformation:
+    stack_name: "{{ app_name }}-web-stack"
+    state: "{{ state }}"
+    region: "{{ region }}"
+    disable_rollback: no
+    on_create_failure: DELETE
+    template: "roles/webservers/files/web-stack.yml"
+    template_parameters:
+      NetworkStackName: "{{ app_name }}-network-stack"
+      AppName: "{{ app_name }}"
+
+- debug:
+    msg: "{{ web_stack['stack_outputs']['LoadBalancerDNS'] }}"
+  when: state == "present"

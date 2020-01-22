@@ -1,5 +1,5 @@
 Parameters:
-  Environment:
+  AppName:
     Type: String
   Region:
     Type: String
@@ -7,68 +7,59 @@ Parameters:
   CidrBlock:
     Type: String
     Default: "10.0.0.0/16"
-  NGW:
-    Type: String
-    Default: "yes"
-    AllowedValues:
-      - "yes"
-      - "no"
-
-Conditions:
-  CreateNatGateway: !Equals [!Ref NGW, "yes"]
 
 Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref CidrBlock
-      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
+      Tags: [{ Key: Name, Value: !Ref AppName }]
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: "10.0.1.0/24"
       AvailabilityZone: "us-east-1a"
       VpcId: !Ref VPC
-      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "public", "1a"]]}]
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref AppName, "public", "1a"]]}]
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: "10.0.2.0/24"
       AvailabilityZone: "us-east-1b"
       VpcId: !Ref VPC
-      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "public", "1b"]]}]
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref AppName, "public", "1b"]]}]
   PublicSubnet3:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: "10.0.3.0/24"
       AvailabilityZone: "us-east-1c"
       VpcId: !Ref VPC
-      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "public", "1c"]]}]
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref AppName, "public", "1c"]]}]
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: "10.0.4.0/24"
       AvailabilityZone: "us-east-1a"
       VpcId: !Ref VPC
-      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "private", "1a"]]}]
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref AppName, "private", "1a"]]}]
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: "10.0.5.0/24"
       AvailabilityZone: "us-east-1b"
       VpcId: !Ref VPC
-      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "private", "1b"]]}]
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref AppName, "private", "1b"]]}]
   PrivateSubnet3:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: "10.0.6.0/24"
       AvailabilityZone: "us-east-1c"
       VpcId: !Ref VPC
-      Tags: [{Key: Name, Value: !Join ["-", [!Ref Environment, "private", "1c"]]}]
+      Tags: [{Key: Name, Value: !Join ["-", [!Ref AppName, "private", "1c"]]}]
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
-      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
+      Tags: [{ Key: Name, Value: !Ref AppName }]
   AttachInternetGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -78,18 +69,18 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
+      Tags: [{ Key: Name, Value: !Ref AppName }]
   NatGateway:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt NatEIP.AllocationId
       SubnetId: !Ref PublicSubnet1
-      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, !Ref Region]] }]
+      Tags: [{ Key: Name, Value: !Ref AppName }]
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, "public"]] }]
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref AppName, "public"]] }]
   PublicRoute:
     Type: AWS::EC2::Route
     Properties:
@@ -115,7 +106,7 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Join ["-", [!Ref Environment, "private"]] }]
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref AppName, "private"]] }]
   PrivateRoute:
     Type: AWS::EC2::Route
     Properties:
@@ -140,7 +131,7 @@ Resources:
   PublicSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Join ["-", [!Ref Environment, "public"]]
+      GroupName: !Join ["-", [!Ref AppName, "public"]]
       GroupDescription: "Public Security Group"
       VpcId: !Ref VPC
       SecurityGroupIngress:
@@ -148,14 +139,11 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: '0.0.0.0/0'
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: '0.0.0.0/0'
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref AppName, "public"]] }]
   PrivateSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Join ["-", [!Ref Environment, "private"]]
+      GroupName: !Join ["-", [!Ref AppName, "private"]]
       GroupDescription: "Private Security Group"
       VpcId: !Ref VPC
       SecurityGroupIngress:
@@ -163,7 +151,7 @@ Resources:
           FromPort: 80
           ToPort: 80
           SourceSecurityGroupId: !GetAtt PublicSecurityGroup.GroupId
-
+      Tags: [{ Key: Name, Value: !Join ["-", [!Ref AppName, "private"]] }]
 Outputs:
   VPCId:
     Value: !Ref VPC
