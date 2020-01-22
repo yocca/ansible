@@ -1,0 +1,22 @@
+###
+---
+- name: Delete defined stacks
+  hosts: localhost
+  vars:
+    state: "absent"
+  vars_files:
+    - vars/config.yml
+  tasks:
+    - include_role:
+        name: webservers
+    - name: Handle network stack
+      cloudformation:
+        stack_name: "{{ app_name }}-network-stack"
+        state: "{{ state }}"
+        region: "{{ region}}"
+        disable_rollback: no
+        template: "network-stack.yml"
+        template_parameters:
+          AppName: "{{ app_name }}"
+          Region: "{{ region }}"
+          CidrBlock: "10.0.0.0/16"
