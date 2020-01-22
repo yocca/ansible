@@ -1,0 +1,94 @@
+Parameters:
+  NetworkStackName:
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+  AppName:
+    Type: String
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: Default
+      Tags: [{ Key: Name, Value: !Ref AppName }]
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ExecutionRoleArn: "arn:aws:iam::202910097882:role/ecsTaskExecutionRole"
+      ContainerDefinitions:
+        - Name: !Ref AppName
+          Essential: true
+          Image: "httpd:2.4"
+          Command: ["/bin/sh -c \"echo '<html> <head> <title>Amazon ECS Sample App</title> <style>body {margin-top: 40px; background-color: #333;} </style> </head><body> <div style=color:white;text-align:center> <h1>Amazon ECS Sample App</h1> <h2>Congratulations!</h2> <p>Your application is now running on a container in Amazon ECS.</p> </div></body></html>' >  /usr/local/apache2/htdocs/index.html && httpd-foreground\""]
+          EntryPoint: ["sh", "-c"]
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+      Cpu: 256
+      Family: !Ref AppName
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: ["FARGATE"]
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Ref AppName
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${NetworkStackName}-VPCID"
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref AppName
+      Type: application
+      SecurityGroups:
+        - Fn::ImportValue:
+            Fn::Sub: "${NetworkStackName}-PublicSecurityGroup"
+      Subnets: !Split
+        - ','
+        - Fn::ImportValue:
+            Fn::Sub: "${NetworkStackName}-PublicSubnets"
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - LoadBalancerListener
+    Properties:
+      ServiceName: !Ref AppName
+      Cluster: !GetAtt ECSCluster.Arn
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::ImportValue:
+                !Sub "${NetworkStackName}-PrivateSecurityGroup"
+          Subnets: !Split
+            - ','
+            - Fn::ImportValue:
+                !Sub "${NetworkStackName}-PrivateSubnets"
+      LoadBalancers:
+        - ContainerName: !Ref AppName
+          ContainerPort: 80
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  LoadBalancerDNS:
+    Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: !Sub "${AWS::StackName}-DNSName"

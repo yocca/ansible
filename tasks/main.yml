@@ -1,8 +1,0 @@
-###  
----
-- name:  Run Create VPC Task File 
-  include_tasks: create_vpc.yml
-  when: state == 'create'
-- import_tasks: delete_vpc.yml
-  when: state == 'delete'
-

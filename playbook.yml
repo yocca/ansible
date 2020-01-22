@@ -1,7 +1,0 @@
----
-- hosts: localhost
-  vars_files:
-    - vars/config.yml
-  tasks:
-    - name: Run Create VPC file
-      include_tasks: tasks/main.yml
