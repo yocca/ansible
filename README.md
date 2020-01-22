@@ -32,5 +32,5 @@ Copy that DNS name and open it in your browser. If you see a page with the heade
 ## Deletion
 To deprovision the resources you've created, enter the following command into your terminal. It will delete the web application stack and then the network stack (Should take 10-20 minutes): 
 
-`ansible-playbook.delete.yml`
+`ansible-playbook playbook-delete.yml`
 
